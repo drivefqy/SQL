@@ -1365,6 +1365,102 @@ lateral view json_tuple(
 字段3
 字段4
 
+每个月Top3的周杰伦歌曲
+从听歌流水中找到18-25岁用户在2022年每个月播放次数top 3的周杰伦的歌曲
+输入例子：
+drop table if exists play_log;
+create table `play_log` (
+    `fdate` date,
+    `user_id` int,
+    `song_id` int
+);
+insert into play_log(fdate, user_id, song_id)
+values 
+('2022-01-08', 10000, 0),
+('2022-01-16', 10000, 0),
+('2022-01-20', 10000, 0),
+('2022-01-25', 10000, 0),
+('2022-01-02', 10000, 1),
+('2022-01-12', 10000, 1),
+('2022-01-13', 10000, 1),
+('2022-01-14', 10000, 1),
+('2022-01-10', 10000, 2),
+('2022-01-11', 10000, 3),
+('2022-01-16', 10000, 3),
+('2022-01-11', 10000, 4),
+('2022-01-27', 10000, 4),
+('2022-02-05', 10000, 0),
+('2022-02-19', 10000, 0),
+('2022-02-07', 10000, 1),
+('2022-02-27', 10000, 2),
+('2022-02-25', 10000, 3),
+('2022-02-03', 10000, 4),
+('2022-02-16', 10000, 4);
+
+drop table if exists song_info;
+create table `song_info` (
+    `song_id` int,
+    `song_name` varchar(255),
+    `singer_name` varchar(255)
+);
+insert into song_info(song_id, song_name, singer_name) 
+values
+(0, '明明就', '周杰伦'),
+(1, '说好的幸福呢', '周杰伦'),
+(2, '江南', '林俊杰'),
+(3, '大笨钟', '周杰伦'),
+(4, '黑键', '林俊杰');
+
+drop table if exists user_info;
+create table `user_info` (
+    `user_id`   int,
+    `age`       int
+);
+insert into user_info(user_id, age) 
+values
+(10000, 18)
+输出例子：
+month|ranking|song_name|play_pv
+1|1|明明就|4
+1|2|说好的幸福呢|4
+1|3|大笨钟|2
+2|1|明明就|2
+2|2|说好的幸福呢|1
+2|3|大笨钟|1
+例子说明：
+1月被18-25岁用户播放次数最高的三首歌为“明明就”、“说好的幸福呢”、“大笨钟”，“明明就”和“说好的幸福呢”播放次数相同，排名先后由两者的song_id先后顺序决定。2月同理。
+select
+		m month,
+		ranks ranking,
+		song_name,
+		cnt play_pv
+from (
+		select
+				*,
+				row_number() over(partition by m order by cnt desc , song_id) ranks
+		from (
+				select
+						m,
+						singer_name,
+						song_name,
+						song_id,
+						count(1) as cnt
+				from (
+					select
+							t1.*,
+							t2.*,
+							month(t3.fdate) m
+					from play_log t3
+					join (select * from song_info where singer_name = "周杰伦") t1
+					on t3.song_id = t1.song_id
+					join  (select * from user_info  where age between 18 and 25) t2
+					on t3.user_id = t2.user_id
+					where year(fdate) = 2022
+				)t4 group by m,singer_name,song_name,song_id
+		)t5
+)t6 where ranks <= 3
+order by m,cnt desc ,song_id
+
 
 关于hive 的一个优化：尽量用group by 去重
 把“小表放在前面做关联可以提高效率”这种说法，更正确的说法
